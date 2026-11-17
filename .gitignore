@@ -1,0 +1,5 @@
+build/
+*.o
+rw
+.vscode/
+Tarea2_SO_Modulo1_Ubuntu.zip
