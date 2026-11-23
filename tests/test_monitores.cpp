@@ -1,5 +1,6 @@
 #include "monitor_lectores.h"
 #include "monitor_escritores.h"
+#include "verificador.h"
 #include <atomic>
 #include <chrono>
 #include <iostream>
@@ -11,54 +12,8 @@ struct Registro {
     long doble_version = 0;
 };
 
-bool comprobar_traza(const std::vector<AnotacionTraza> &traza,
-                    bool prioridad_lectores) {
-    int lectores = 0, escritores = 0;
-    int lectores_pendientes = 0, escritores_pendientes = 0;
-    for (std::size_t i = 0; i < traza.size(); ++i) {
-        const auto &e = traza[i];
-        if (e.turno != -1) return false;
-        if (e.accion == Accion::Pide) {
-            if (e.tipo == Tipo::Lectora) {
-                ++lectores_pendientes;
-                if (prioridad_lectores && escritores == 0) {
-                    if (i + 1 == traza.size()) return false;
-                    const auto &s = traza[i+1];
-                    if (s.accion != Accion::Entra || s.hebra != e.hebra ||
-                        s.tipo != e.tipo) return false;
-                }
-            } else {
-                ++escritores_pendientes;
-            }
-        } else if (e.accion == Accion::Entra) {
-            if (e.tipo == Tipo::Lectora) {
-                if (escritores != 0 || lectores_pendientes <= 0) return false;
-                if (!prioridad_lectores && escritores_pendientes > 0) return false;
-                --lectores_pendientes;
-                ++lectores;
-            } else {
-                if (lectores != 0 || escritores != 0 ||
-                    escritores_pendientes <= 0) return false;
-                if (prioridad_lectores && lectores_pendientes > 0) return false;
-                --escritores_pendientes;
-                ++escritores;
-            }
-        } else {
-            if (e.tipo == Tipo::Lectora) {
-                if (lectores <= 0) return false;
-                --lectores;
-            } else {
-                if (escritores != 1) return false;
-                --escritores;
-            }
-        }
-    }
-    return lectores == 0 && escritores == 0 &&
-           lectores_pendientes == 0 && escritores_pendientes == 0;
-}
-
 template <class Monitor>
-bool probar(const char *nombre, bool prioridad_lectores) {
+bool probar(const char *nombre, Politica politica) {
     constexpr int L = 4, E = 2, K = 30;
     Monitor monitor;
     Registro reg;
@@ -104,22 +59,32 @@ bool probar(const char *nombre, bool prioridad_lectores) {
     for (auto &h : hebras) h.join();
 
     auto traza = monitor.obtener_traza();
-    bool bien = reg.version == E*K && reg.doble_version == 2*E*K &&
+    auto res = verificar_traza(traza, politica);
+
+    if (!res.politica_ok) {
+        std::cerr << "[" << nombre << "] Error en anotacion "
+                  << res.indice_error << ": " << res.mensaje_error << '\n';
+    }
+
+    bool bien = reg.version == E * K && reg.doble_version == 2 * E * K &&
                 inconsistencias == 0 && violaciones == 0 &&
-                traza.size() == static_cast<std::size_t>(3 * (L+E) * K) &&
-                comprobar_traza(traza, prioridad_lectores);
+                traza.size() == static_cast<std::size_t>(3 * (L + E) * K) &&
+                res.politica_ok;
+
     std::cout << nombre << ": " << (bien ? "OK" : "ERROR")
               << " | version=" << reg.version
               << " | doble=" << reg.doble_version
               << " | inconsistencias=" << inconsistencias
               << " | violaciones=" << violaciones
               << " | max_lectoras=" << max_lectoras
-              << " | traza=" << traza.size() << '\n';
+              << " | traza=" << traza.size()
+              << " | politica_ok=" << (res.politica_ok ? "SI" : "NO")
+              << " | evidencia=" << res.evidencia << '\n';
     return bien;
 }
 
 int main() {
-    bool a = probar<MonitorLectoresRW>("prioridad lectores", true);
-    bool b = probar<MonitorEscritoresRW>("prioridad escritores", false);
+    bool a = probar<MonitorLectoresRW>("prioridad lectores", Politica::Lectores);
+    bool b = probar<MonitorEscritoresRW>("prioridad escritores", Politica::Escritores);
     return (a && b) ? 0 : 1;
 }
