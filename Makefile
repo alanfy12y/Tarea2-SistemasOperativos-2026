@@ -1,8 +1,8 @@
 CXX := g++
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -Wpedantic -pthread -Iinclude
 
-SRCS := src/tipos.cpp src/monitor_lectores.cpp src/monitor_escritores.cpp src/verificador.cpp
-HDRS := include/tipos.h include/control_rw.h include/monitor_lectores.h include/monitor_escritores.h include/verificador.h
+SRCS := src/tipos.cpp src/monitor_lectores.cpp src/monitor_escritores.cpp src/verificador.cpp src/monitor_fifo.cpp
+HDRS := include/tipos.h include/control_rw.h include/monitor_lectores.h include/monitor_escritores.h include/verificador.h include/monitor_fifo.h
 
 .PHONY: all test-monitores clean
 

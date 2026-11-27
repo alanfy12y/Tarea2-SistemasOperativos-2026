@@ -1,5 +1,6 @@
 #include "monitor_lectores.h"
 #include "monitor_escritores.h"
+#include "monitor_fifo.h"
 #include "verificador.h"
 #include <atomic>
 #include <chrono>
@@ -86,5 +87,6 @@ bool probar(const char *nombre, Politica politica) {
 int main() {
     bool a = probar<MonitorLectoresRW>("prioridad lectores", Politica::Lectores);
     bool b = probar<MonitorEscritoresRW>("prioridad escritores", Politica::Escritores);
-    return (a && b) ? 0 : 1;
+    bool c = probar<MonitorFifoRW>("politica fifo", Politica::Fifo);
+    return (a && b && c) ? 0 : 1;
 }
